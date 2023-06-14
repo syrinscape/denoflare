@@ -342,6 +342,9 @@ https://<host>/<bucket-name>/<key>
 
         // compute expected signature, and compare it to the one we received
         const expectedSignature = await computeExpectedAwsSignature(call, { amazonDate: xAmzDate, unsignedPayload: true, credentials: { accessKey: credential.accessKeyId, secretKey: credential.secretAccessKey }});
+        if (expectedSignature !== xAmzSignature) {
+            console.log(`expectedSignature !== xAmzSignature: ${expectedSignature} !== ${xAmzSignature}`);
+        }
         if (expectedSignature !== xAmzSignature) throw new Error(`Invalid X-Amz-Signature: ${xAmzSignature}`);
 
         // authorized!
