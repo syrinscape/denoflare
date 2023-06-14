@@ -351,3 +351,5 @@ https://<host>/<bucket-name>/<key>
         return undefined;
     }
 }
+
+export { computeHeaders, isPresignedUrlAuthorized, parseCredentials }
