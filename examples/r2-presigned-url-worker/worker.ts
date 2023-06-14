@@ -44,7 +44,7 @@ function tryParseMessageCode(message: unknown): number | undefined {
 }
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
-    const { bucket, virtualHostname } = env;
+    const { bucket, virtualHost } = env;
     const flags = stringSetFromCsv(env.flags);
     const allowIps = stringSetFromCsv(env.allowIps);
     const denyIps = stringSetFromCsv(env.denyIps);
@@ -67,15 +67,15 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     }
 
     // parse bucket-name, key from url
-    const { hostname, pathname, searchParams } = new URL(url);
+    const { host, pathname, searchParams } = new URL(url);
     const debug = searchParams.has('debug');
     let style: string, bucketName: string, keyEncoded: string;
-    if (virtualHostname === hostname) {
+    if (virtualHost === host) {
         // vhost-style request, bucket key is the full url path
         const m = /^\/(.+)$/.exec(pathname);
         if (!m) return notFound(method);
         style = 'vhost';
-        bucketName = virtualHostname.split('.').at(0) ?? '';
+        bucketName = virtualHost.split('.').at(0) ?? '';
         keyEncoded = m[1];
     } else {
         // path-style request, bucket key follows bucket name in the url path
@@ -86,7 +86,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         keyEncoded = m[2];
     }
     const key = decodeURIComponent(keyEncoded);
-    console.log(JSON.stringify({ style, hostname, bucketName, keyEncoded, key }));
+    console.log(JSON.stringify({ style, host, bucketName, keyEncoded, key }));
 
     // check auth
     const credential = await isPresignedUrlAuthorized({ url, searchParams, credentials, debug, maxSkewMinutes, maxExpiresMinutes });
@@ -168,7 +168,7 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
         if (onlyIf.etagMatches) return preconditionFailed();
         if (onlyIf.uploadedBefore) return preconditionFailed();
     }
-    
+
     const headers = computeHeaders(obj, range);
 
     // non-standard cloudflare ResponseInit property indicating the response is already encoded
@@ -221,7 +221,7 @@ function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
     const ifModifiedSince = headers.get('if-modified-since') || undefined;
     // if-modified-since date format (rfc 1123) is at second resolution, uploaded is at millis resolution
     // workaround for now is to add a second to the provided value
-    const uploadedAfter = ifModifiedSince ? addingOneSecond(new Date(ifModifiedSince)) : undefined; 
+    const uploadedAfter = ifModifiedSince ? addingOneSecond(new Date(ifModifiedSince)) : undefined;
 
     const ifUnmodifiedSince = headers.get('if-unmodified-since') || undefined;
     const uploadedBefore = ifUnmodifiedSince ? new Date(ifUnmodifiedSince) : undefined;
@@ -316,7 +316,7 @@ https://<host>/<bucket-name>/<key>
         const xAmzSignature = searchParams.get('X-Amz-Signature') || undefined;
         if (!xAmzSignature) throw new Error(`Missing X-Amz-Signature parameter`);
 
-        // validate X-Amz-Credential 
+        // validate X-Amz-Credential
         const xAmzCredential = searchParams.get('X-Amz-Credential') || undefined;
         if (!xAmzCredential) throw new Error(`Missing X-Amz-Credential parameter`);
         const m = /^(.+)\/(\d{8})\/([a-z0-9-]+)\/([a-z0-9-]+)\/aws4_request$/.exec(xAmzCredential);
@@ -331,7 +331,7 @@ https://<host>/<bucket-name>/<key>
         if (candidates.length === 0) throw new Error(`Unknown X-Amz-Credential accessKeyId: ${accessKeyId}`);
         if (candidates.length > 1) throw new Error(`Multiple candidates for X-Amz-Credential accessKeyId: ${accessKeyId}`);
         const credential = credentials[0];
-        
+
         // compute original aws call
         const u = new URL(url);
         for (const key of [...u.searchParams.keys()]) {
@@ -355,4 +355,4 @@ https://<host>/<bucket-name>/<key>
     }
 }
 
-export { computeHeaders, isPresignedUrlAuthorized, parseCredentials }
+export { computeHeaders, isPresignedUrlAuthorized, parseCredential }
